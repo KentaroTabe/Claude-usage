@@ -308,6 +308,14 @@ class RenderTest(unittest.TestCase):
         for removed in ('id="card"', "showSummary", "showCard", 'id="camera"'):   # タイトル・エンディング・カメラの切り替えは外した
             self.assertNotIn(removed, html)
 
+    def test_waits_while_the_screen_has_no_size(self):
+        # 大きさ 0 の間は描かずに待つ。大きさ 0 の層を描くと例外で描画の繰り返しが止まっていた(2026-11-03)
+        html = render_activity({"projects": [], "days": []})
+        frame = html[html.index("function frame(now) {"):]
+        frame = frame[:frame.index("\n  }\n")]
+        self.assertLess(frame.index("if (!W || !H) {"), frame.index("drawGlowLayer();"))
+        self.assertIn("requestAnimationFrame(frame);\n      return;", frame)   # 待つ間も繰り返しは続ける
+
     def test_names_cannot_close_the_script_element(self):
         embedded = embed_json({"name": "</script><script>alert(1)</script>"})
         self.assertNotIn("<", embedded)

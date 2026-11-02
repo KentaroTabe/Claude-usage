@@ -846,6 +846,11 @@
   }
 
   function frame(now) {
+    if (!W || !H) {   // 隠れた枠の中など大きさが 0 の間は描かずに待つ(大きさ 0 の画像を描くと例外で再生が止まるため)。大きさが付けば resize で描き直す
+      last = now;
+      requestAnimationFrame(frame);
+      return;
+    }
     const elapsed = Math.min(0.25, (now - last) / 1000);
     frameMs = lerp(frameMs, now - last, 0.04);
     last = now;
