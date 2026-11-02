@@ -1,0 +1,61 @@
+/* 活動の再生画面。暗い空に光を重ねる画面なので、ライト/ダークの切り替えは持たない。 */
+:root {
+  color-scheme: dark;
+  --ink: #f3efe6;
+  --ink-2: #b9b6c9;
+  --ink-3: #7f7c96;
+  --glass: rgba(14, 14, 32, 0.58);
+  --line: rgba(255, 255, 255, 0.10);
+  --heat: linear-gradient(90deg, #3a2a6b, #8a2a86, #d9453f, #f99a1e, #fff7c8);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #05070f; color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.layer { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+body.idle { cursor: none; }
+
+.clock { position: fixed; left: 40px; top: 32px; pointer-events: none; text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6); }
+#date { font-size: 15px; letter-spacing: 0.08em; color: var(--ink-2); font-weight: 400; }
+#time { font-size: 64px; font-weight: 200; line-height: 1.1; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+#skip { margin-top: 6px; font-size: 12px; letter-spacing: 0.08em; color: #f9b65c; }
+
+.counters { position: fixed; right: 40px; top: 36px; margin: 0; display: flex; gap: 32px; pointer-events: none;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7); }
+.counters div { text-align: right; }
+.counters dt { font-size: 11px; letter-spacing: 0.08em; color: var(--ink-3); }
+.counters dd { margin: 2px 0 0; font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
+
+#tip { position: fixed; z-index: 3; max-width: 280px; padding: 10px 14px; border-radius: 10px; pointer-events: none;
+  background: rgba(10, 10, 26, 0.86); border: 1px solid var(--line); -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px); font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+#tip b { display: block; color: var(--ink); font-size: 14px; font-weight: 500; }
+
+.dock { position: fixed; left: 24px; right: 24px; bottom: 20px; padding: 10px 16px 8px; border-radius: 16px;
+  background: var(--glass); border: 1px solid var(--line); -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px); transition: opacity 0.6s; }
+body.idle .dock { opacity: 0.22; }
+.controls { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+button, select { font: inherit; font-size: 12px; color: var(--ink); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line); border-radius: 8px; height: 30px; padding: 0 10px; cursor: pointer; }
+button:hover, select:hover { background: rgba(255, 255, 255, 0.12); }
+button:focus-visible, select:focus-visible { outline: 2px solid #f99a1e; outline-offset: 1px; }
+select option, select optgroup { background: #14142a; color: var(--ink); }
+#play { width: 36px; padding: 0; border-radius: 50%; height: 36px; font-size: 13px; background: #f3efe6; color: #14142a;
+  border: 0; }
+#play:hover { background: #fff; }
+#fresh { background: #f99a1e; color: #14142a; border: 0; }
+.legend { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-3); }
+.legend i { width: 96px; height: 6px; border-radius: 3px; background: var(--heat); }
+#timeline { display: block; width: 100%; height: 56px; cursor: crosshair; touch-action: none; }
+
+@media (max-width: 760px) {
+  .clock { left: 20px; top: 20px; }
+  #time { font-size: 44px; }
+  .counters { left: 16px; right: 16px; top: 112px; justify-content: space-between; gap: 8px; }
+  .counters div { text-align: left; }
+  .counters dt { font-size: 10px; letter-spacing: 0; white-space: nowrap; }
+  .counters dd { font-size: 15px; }
+  .dock { left: 8px; right: 8px; bottom: 8px; }
+  .legend { display: none; }
+}
