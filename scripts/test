@@ -1,0 +1,4 @@
+#!/bin/sh
+# テストを実行する。Python は環境変数 PYTHON で変えられる(tomllib のため 3.11 以上が必要)。
+cd "$(dirname "$0")/.." || exit 1
+PYTHONPATH=src exec "${PYTHON:-python3.12}" -m unittest discover -s tests -t . "$@"

@@ -1,0 +1,10 @@
+# Python の生成物
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store
+
+# 手元専用のプレビュー設定(自分の Mac の絶対パスを含む)
+.claude/launch.json

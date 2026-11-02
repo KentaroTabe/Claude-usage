@@ -1,0 +1,272 @@
+# claude-usage の設定ファイルの例。
+# 実際の設定は ~/Library/Application Support/claude-usage/config.toml に置く
+# (環境変数 CLAUDE_USAGE_CONFIG で場所を変えられる)。どちらもなければこのファイルを使う。
+
+[paths]
+# Claude Code の会話ログ(トークン量・プロジェクトの取得元)
+transcripts_root   = "~/.claude/projects"
+# デスクトップアプリの使用量の記録(5 時間枠・週次の使用率の取得元。30 日分だけ残る)。
+# 消えないよう、読むたびに data_dir/plan-usage-archive.json にコピーを足し、コピーと合わせて使う
+plan_usage_history = "~/Library/Application Support/Claude/plan-usage-history.json"
+# デスクトップアプリの設定。使用量メニューを最後に開いた時刻(planUsageLastTrayOpenAt)だけを読む。
+# ログインの情報も入っているので、ほかの値は読まない・表示しない・書き換えない
+app_config         = "~/Library/Application Support/Claude/config.json"
+# デスクトップアプリのセッション情報。活動の再生画面でセッションの続き・分岐の関係に使う。
+# ID の項目(sessionId・cliSessionId・priorCliSessionIds・forkedFromSessionId・spawnedFrom.sessionId)だけを読む
+desktop_sessions   = "~/Library/Application Support/Claude/claude-code-sessions"
+# 活動の再生画面(cu activity)の保存先。週次レポートを作ったときにも更新する
+activity_html      = "~/Documents/Claude_Usage/Claude_Usage_Activity.html"
+data_dir           = "~/Library/Application Support/claude-usage"
+# ダミーデータのレポートの出力先(cu demo-report。見た目の確認用)
+demo_dir           = "~/Library/Application Support/claude-usage/demo"
+# 毎週のレポート(PDF)の保存先
+pdf_dir            = "~/Documents/Claude_Usage"
+
+[week]
+timezone     = "Asia/Tokyo"
+# 週次リセットの時刻のうち 1 つ。ここから cycle_days ごとに週を区切る(手動リセットでは区切らない)
+reset_anchor = "2026-10-27T19:00:00+09:00"
+cycle_days   = 7
+# 5 時間枠の長さ [時間]
+window_hours = 5
+
+[metric]
+# 使用量 = API 換算額(各トークン数 × そのモデルの API の単価 の合計)× モデルの倍率。上限の消費の近似
+
+[metric.prices]
+# API の単価 [ドル/100 万トークン]: [入力, 5 分キャッシュ書き込み, 1 時間キャッシュ書き込み, キャッシュ読み込み, 出力]
+# 公式の単価(2026-10-06 時点)。モデル ID の先頭で探し、長く一致するものを使う。
+# 新しいモデルや単価の変更は、Claude Code が会話ログに残す費用の記録から自動で推定する([metric.price_learning])。
+"claude-fable-5-1"  = [10.0, 12.5, 20.0, 0.25, 50.0]
+"claude-fable-5"    = [10.0, 12.5, 20.0, 1.0, 50.0]
+"claude-opus-5-5"   = [4.0, 5.0, 8.0, 0.2, 20.0]
+"claude-opus-5"     = [5.0, 6.25, 10.0, 0.5, 25.0]
+"claude-opus-4"     = [5.0, 6.25, 10.0, 0.5, 25.0]
+"claude-sonnet-5-5" = [2.0, 2.5, 4.0, 0.2, 10.0]
+"claude-sonnet-5"   = [2.0, 2.5, 4.0, 0.2, 10.0]
+"claude-sonnet-4"   = [3.0, 3.75, 6.0, 0.3, 15.0]
+"claude-haiku-5-5"  = [0.1, 0.125, 0.2, 0.01, 0.5]
+"claude-haiku-4"    = [1.0, 1.25, 2.0, 0.1, 5.0]
+# 系統ごとの代わりの単価(表にない新しいモデルに、費用の記録から単価が分かるまで使う。各系統の最新の単価)
+"claude-fable"      = [10.0, 12.5, 20.0, 0.25, 50.0]
+"claude-opus"       = [4.0, 5.0, 8.0, 0.2, 20.0]
+"claude-sonnet"     = [2.0, 2.5, 4.0, 0.2, 10.0]
+"claude-haiku"      = [0.1, 0.125, 0.2, 0.01, 0.5]
+"claude"            = [4.0, 5.0, 8.0, 0.2, 20.0]
+
+[metric.price_learning]
+# 会話ログの cost-state(Claude Code が計算した累計の API 換算額とトークン数)と単価を比べ、
+# 合わない記録が min_records 回以上続いたモデルは、その記録から単価を推定して、その時点から使う(state.json に保存)。
+# 単価の構造は公式の単価と同じ(出力 = 入力×5、書き込み = 入力×1.25・×2)と仮定し、入力とキャッシュ読み込みの単価を求める。
+min_records = 3
+# 合う・合わないの判定の許容 [%](cost-state は 5 分と 1 時間の書き込みを分けないので、その幅も含めて判定する)
+tolerance_pct = 3
+
+[metric.model_factors]
+# モデルによる上限の減り方の違い(倍率)。"モデル ID の先頭" = [{ from = この日時から, factor = 倍率 }, …]。
+# 応答の時刻に有効な倍率を重み付きトークンに掛ける。最初の from より前と、ここにないモデルは 1。
+# 単価(API 換算額)に対する倍率。単価の差はすでに API 換算額に入っているので、それを超える分だけを表す。
+# Fable: 「~2× faster than Opus」が公表されていた期間(9/1 に終わる週まで、2026-10-23 ユーザーの決定)は 1
+#   (公表の 2 倍は単価の比 Fable 5 $10/$50 ÷ Opus $5/$25 と同じなので、単価に対しては 1 倍)。
+#   それ以降は 2(9/23〜10/23 の使用率の記録を API 換算額で当てはめた値、約 1.95。設計書 §2.11)。
+#   根拠: 2 倍の期間の終わりはユーザーが貼り付けた調査(表記が 9/1〜2 の Fable 5.1 公開まで残っていたとするもの)。
+#   Claude Code の画面の文言は 6/24 公開の v2.1.190 で消えている(設計書 §2.9)。
+"claude-fable" = [
+  { from = "2026-06-09T16:15:44Z", factor = 1.0 },
+  { from = "2026-09-01T10:00:00Z", factor = 2.0 },
+]
+
+[metric.weekly_factor]
+# 週ごとに、その週の使用率の記録から model の倍率を推定し、その週の API 換算額に使う。
+# 推定: 記録の連続する 2 点の区間ごとに「週次%の増分 ≒ a × model の API 換算額 + b × それ以外の API 換算額」を当てはめ、a ÷ b。
+# 推定できない週(記録が少ない過去の週など)は、上の model_factors の値を使う。
+model = "claude-fable"
+# 区間の間隔の上限 [分](これより長い区間は、いつ使ったか分からないので使わない)
+max_gap_minutes = 45
+# 推定に必要な区間の数(Claude Code を使った区間)と、そのうち model を使った区間・それ以外を使った区間のそれぞれの最小数
+min_intervals = 10
+min_model_intervals = 4
+# 推定値がこの範囲の外なら使わない(区間が少ない・Claude Code 以外の利用が多いと外れやすい)
+min_factor = 0.5
+max_factor = 10.0
+# model の週間上限が週次上限(全モデル)の何 % か [%]。ヘルプセンターの「週次上限の 50% まで」(設計書 §2.11 で確認)。
+# 記録から推定できない週は、画面の値([observed])と Claude Code 以外の割合([non_code.weeks])が分かれば
+#   倍率 = (model% × この値 ÷ model の API 換算額) ÷ ((全モデル% × Claude Code の割合 − model の分) ÷ それ以外の API 換算額)
+model_limit_share_pct = 50
+
+[projects]
+# 作業ディレクトリから取り除く worktree の部分(正規表現)。worktree が消えた後でも本体のプロジェクトにまとめるため
+worktree_patterns = ['/\.claude/worktrees/[^/]+', '-worktrees/[^/]+$']
+
+[projects.aliases]
+# 作業ディレクトリ(正規表現)→ 表示するプロジェクト名。例: "^/Users/me/Library" = "(その他)"
+
+[report]
+# 円グラフ・積み上げ棒に個別の色で出すプロジェクト数の上限(残りは「その他」にまとめる。合計 6 区分まで)
+max_slices = 5
+# 週の合計に対する割合がこれ未満のプロジェクトは「その他」にまとめる [%]
+others_min_pct = 3.0
+# 記録点がこの数以下なら、折れ線に点のマーカーも描く
+marker_max_points = 40
+# 週次上限の使用率(%)のグラフは、記録がこの時間数(記録のある「時」の数)以上ある週だけ載せる [時間]
+# 主なグラフは使用量(重み付きトークンの累積)。% の記録はメニューを開かないと残らないため(設計書 §2.5)
+min_limit_hours = 24
+# 開発時間: Claude Code の応答の時刻を並べ、間隔がこの時間以内なら続けて作業していたとして足す [分]。
+# 週の合計は全セッションをまとめて計算し(並行した分は 1 回)、プロジェクト別はそのプロジェクトの応答だけで計算する
+dev_time_gap_minutes = 15
+
+[report.models]
+# 使用量を個別にグラフにするモデル(表示名 = "モデル ID の先頭")。API 換算額の累積を描く。
+# 表示名は Claude Code の /usage のモデル別の週間上限の名前と同じにする(その % を使用率のグラフに重ねるため)
+Fable = "claude-fable"
+
+[pdf]
+# HTML → PDF の変換を待つ時間の上限 [秒]
+timeout_seconds = 60
+
+[notify]
+# レポートを作ったら macOS の通知で知らせる
+enabled = true
+# 通知は Mac を操作している間だけ出す: 最後の操作(キーボード・マウスなど)からこの時間以内なら操作中とみなす [分]。
+# 操作していないとき(画面が消えている間の一時的な起動・離席中など)は出さず、次の回に持ち越す(2026-10-27 ユーザーの指定)
+active_idle_minutes = 10
+
+[schedule]
+# launchd で cu tick(未作成の週のレポート作成と、記録の確認)を動かす間隔 [分]
+interval_minutes = 30
+# launchd のジョブ名(~/Library/LaunchAgents/<label>.plist)
+label = "local.claude-usage.tick"
+
+[reminder]
+# デスクトップアプリの使用量の記録が止まったら、使用量メニューを開くよう通知する
+enabled = true
+# 最新の記録がこれより古く、かつ 24 時間の期限切れ(下の tray_window_hours)か、アプリが起動していないときに通知する [分]
+# (記録は動いていれば 15 分ごと。スリープや通信の失敗で一時的に止まっただけなら、起きれば再開するので通知しない)
+stale_minutes = 60
+# 一度知らせたら、次に知らせるまで空ける時間 [時間]
+repeat_hours = 6
+# 通知を出す時間帯 [時](active_from_hour 時から active_until_hour 時の前まで)
+active_from_hour = 8
+active_until_hour = 23
+# アプリは使用量メニューを最後に開いてから tray_window_hours の間だけ記録を続ける
+# (アプリのログ「poll requires tray open within 86400000ms」)。止まる前に知らせるため、
+# 最後に開いてから tray_notice_hours 経ったら通知する(2026-10-24 ユーザーの指定で 20 時間)。
+# その時刻が通知しない時間帯に入り、朝より前に記録が止まるときは、その夜の通知できる最後の 1 時間に早める。
+tray_notice_hours = 20
+tray_window_hours = 24
+
+[claude_code]
+# Claude Code の /usage と同じ値(全モデル・モデル別の週次%、製品別の内訳)を、定期実行のたびに Claude Code に
+# 問い合わせて data_dir/claude-code-usage.jsonl に記録する(制御要求 get_usage。設計書 §2.13)。
+# モデルには問い合わせないので上限は減らない。セッションは保存せず、MCP サーバー・ユーザー設定のプラグインとフックも読み込まない。
+# 記録した値の使い道(2026-10-28 ユーザーの指定): 全体の % と 5 時間枠の % はデスクトップアプリの記録に足す。
+# モデル別の % と製品別の内訳は画面の値([observed.points])と同じに扱う(使用率のグラフの Fable の線、
+# Claude Code 以外の割合、週ごとの倍率)
+enabled = true
+# 実行ファイルの場所(~ と * を使える)。見つかったもののうち、パスにある版の番号が最も大きいものを使う。
+# デスクトップアプリに入っている Claude Code(アプリと一緒に更新される)と、単体で入れた Claude Code
+executables = [
+  "~/Library/Application Support/Claude/claude-code/*/*/claude.app/Contents/MacOS/claude",
+  "~/.local/bin/claude",
+]
+# 応答を待つ時間の上限 [秒](通常 2 秒ほど)
+timeout_seconds = 30
+# しばらくはデスクトップアプリの記録と両方を取り、週次% を照合する(2026-10-28 ユーザーの指定。正確で手間なく取れると
+# 判断できたら一本化する)。/usage の記録ごとに、前後この時間以内のデスクトップの記録の間に値が収まるかを見る [分]
+# (デスクトップの記録は約 15 分ごと)。結果は毎週のレポートの注記と cu compare-sources で見る
+compare_gap_minutes = 20
+# 一本化の目安(2026-11-01 に決定。ユーザーから一任。設計書 §2.13)。次をすべて満たす週が consolidate_weeks 週続いたら、
+# /usage の記録だけにしてよいとする: 照合できた記録が consolidate_min_compared 件以上・値が前後に収まらなかった記録が 0 件・
+# 取得の失敗が consolidate_max_failure_pct % 以下・記録のある時間が /usage ≧ デスクトップ
+consolidate_weeks = 2
+consolidate_min_compared = 30
+consolidate_max_failure_pct = 5
+
+[activity]
+# 活動の再生画面(cu activity)。セッションを星、プロジェクトを星雲として、全期間の動きを再生する(設計書 §2.15)。
+# 点(星)として出すセッションの応答数の下限。これより小さい実行はプロジェクトの小さな実行としてまとめる
+# (応答 10 件未満は 417 セッションあるが、API 換算額の 0.9% しかない。2026-11-02 の実測)
+min_responses = 10
+# 再生の時間の刻み [分]
+bin_minutes = 15
+# よく動いているの定義: 刻みごとの応答数(サブエージェントを含む)を指数減衰で足した値の半減期 [分]
+half_life_minutes = 30
+# 全期間のこの百分位の値を色の上限にする [%]。対数で 0〜1 の段階に直す(全期間で同じ基準なので、週どうしを比べられる)
+heat_percentile = 99
+# 最後の応答の後、段階がこの値を下回ったら星を消す(余韻)
+fade_level = 0.05
+# 関係に使わないブランチ(多くのセッションが共有するので、関係の根拠にならない)
+default_branches = ["main", "master", "HEAD", "develop"]
+# 同じプロジェクトでこの数より多くのセッションが触るファイルは、関係とみなさない(設定ファイルなど)
+max_file_sessions = 8
+# 今後の使用に合わせて画面を作り直す最短の間隔 [分]。定期実行で、会話ログが更新されていれば作り直す(全部読むので 1 回 40 秒ほどかかる)
+refresh_minutes = 60
+# 星雲は生まれたときはどれも同じ「生まれたての姿」で、使うほどそのプロジェクトの姿に移り変わる。この API 換算額でなりきる [ドル]
+#(対数で進むので、$10 で 4 割、$100 で 8 割ほど。小さな試しは生まれたての姿に近いまま)
+mature_usd = 300
+# 動きがない星雲は衰える: 最後の応答からこの日数で衰え始め、dead_days でくすんだ赤茶の死んだ姿になりきる。また使えば戻る
+dormant_days = 7
+dead_days = 30
+
+[activity.categories]
+# 星雲の姿は種類を 1 つに決めず、連続した特徴を混ぜて作る(2026-11-03 ユーザーの指定「全く同じものはない感じで」)。
+# 作るもの(フォルダのファイル構成から比率を出す。名前と拡張子だけを見る)→ 星雲の形の成分。比率のとおりに形を混ぜる:
+#   game(Unity・Godot など)/ app(Swift・Xcode など)/ web(TS・JS・HTML など)/ data(表・学習済みモデル・音声など)/
+#   tool(Python・シェルなど)/ media(画像・3D・文書)
+# 形の成分: emission(散光星雲)・pillars(創造の柱)・ring(環状星雲)・bipolar(双極星雲)・remnant(超新星残骸)・
+#   reflection(反射星雲)・spiral(渦巻)・dark(暗黒星雲)
+# 使い方の特徴も混ぜる: 並行の作業(サブエージェント)が多い → 細い筋(remnant)、休んでいた時間が長い → 暗黒星雲と塵(dark)、
+#   使い方の波 → ガスの乱れ、Fable の割合 → 温かい色、勢い → 芯の明るさ、セッションの数 → 埋もれた星の数
+game = "spiral"
+app = "ring"
+web = "emission"
+data = "bipolar"
+tool = "pillars"
+media = "reflection"
+
+[activity.project_kinds]
+# 自動の比率に対して、半分ほどこの作るものに寄せる(プロジェクト名 = 作るもの)。2026-11-03 ユーザーの決定
+"PokemonChampioons_Adviser" = "data"   # Web の画面もあるが、データの分析が主役
+"PirateGame" = "data"                  # ゲームを題材にした機械学習・データ処理
+"daily-scout" = "tool"                 # Mac/iOS の画面もあるが、毎日の自動実行が主役
+
+[non_code]
+# Claude Code 以外の利用(Cowork など)。ローカルに使用量が残らないため、週全体に占める割合 [%] で扱う。
+# 推定: 週次の使用率の記録のうち、Claude Code を使っていない区間に増えた分の割合。
+# 記録の間隔がこれより長い区間は、いつ使ったか分からないので推定に使わない [分]
+max_gap_minutes = 45
+# 推定に使えた区間の増分が、週の増分のこの割合以上のときだけ推定を載せる [%]
+min_known_pct = 80
+# 推定した値の表示名
+estimate_name = "Cowork など"
+
+[non_code.weeks]
+# 覚えている値を週ごとに入れる(推定より優先)。"週の終わり(リセット)の日付" = { 表示名 = 割合 [%] }
+# 画面の「今週の製品別使用状況」がある週は、ここではなく [observed.points] の products に入れる(そちらを優先)
+"2026-10-20" = { Cowork = 40 }  # ユーザーの記憶
+
+[observed.points]
+# 使用量の画面(スクリーンショットなど)で見た値。デスクトップアプリの記録が止まっていた週を補う。
+# "撮影日時(時差付き)" = { all = 全モデルの週次%, <report.models の表示名> = そのモデルの週間上限の%,
+#                         products = { "Claude Code" = %, "チャット" = %, "Cowork" = % } }
+# all は、その週の記録の最後より後のものだけを使う(記録と重なる時間の値は記録を優先)。
+# products(今週の製品別使用状況)がある週は、Claude Code 以外の割合(チャットも含める、2026-10-23 ユーザーの指定)と、
+# 画面の値からの倍率(使用率の記録からの推定より優先)に使う。
+"2026-07-28T18:48:17+09:00" = { all = 65, Fable = 100 }
+"2026-08-04T18:29:06+09:00" = { all = 42, Fable = 52 }
+"2026-08-11T18:34:45+09:00" = { all = 63, Fable = 100 }
+"2026-08-18T17:55:34+09:00" = { all = 64, Fable = 52 }
+"2026-08-25T18:50:38+09:00" = { all = 95, Fable = 83 }
+"2026-09-01T18:51:42+09:00" = { all = 89, Fable = 79 }
+"2026-09-08T18:34:29+09:00" = { all = 68, Fable = 100 }
+"2026-09-15T18:37:00+09:00" = { all = 89, Fable = 100 }  # ファイル名に時刻がないため「あと 23 分でリセット」から
+"2026-09-22T18:07:23+09:00" = { all = 95, Fable = 100, products = { "Claude Code" = 98, "チャット" = 1, "Cowork" = 1 } }
+"2026-09-29T18:51:22+09:00" = { all = 57, Fable = 94 }
+"2026-10-04T14:42:45+09:00" = { all = 66, Fable = 100 }  # 手動リセットの直前
+"2026-10-06T18:00:41+09:00" = { all = 73, Fable = 100 }
+"2026-10-13T09:35:14+09:00" = { all = 91, Fable = 100 }
+# 今週の途中の値(10/24 1 時ごろ。Fable は画面で折りたたまれていたため、同じ時刻のアプリの表示の値)
+"2026-10-24T01:10:00+09:00" = { all = 47, Fable = 21, products = { "Claude Code" = 82, "チャット" = 6, "Cowork" = 12 } }
+# 10/27 に終わる週の最終の値。撮影時刻は画面の値(週次 80%・5 時間枠 4%・21:30 リセット)が記録と一致する 17:32〜18:59 のうち
+# 最後の記録の時刻。Fable は画面で折りたたまれていたため、10/27 8:19 のアプリの表示(21%)と、その後 Fable を使っていないことから
+"2026-10-27T18:30:00+09:00" = { all = 80, Fable = 21, products = { "Claude Code" = 81, "チャット" = 5, "Cowork" = 14 } }

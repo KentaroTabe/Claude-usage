@@ -1,0 +1,10 @@
+#!/usr/bin/env python3.12
+"""起動用ラッパー。src/ を import パスに加えて claude_usage.cli を実行する。"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from claude_usage.cli import main  # noqa: E402
+
+sys.exit(main())
