@@ -30,7 +30,8 @@ class ParseConfigTest(unittest.TestCase):
         self.assertIn("claude", c.weights.prices)  # どのモデルにも当てはまる代わりの単価
         self.assertEqual((c.price_learning.min_records, c.price_learning.tolerance), (3, 0.03))
         self.assertEqual(c.report.models, {"Fable": "claude-fable"})
-        self.assertEqual(c.project_aliases, {})
+        # Claude-Safe-Stopper のテストの一時フォルダをまとめる別名(2026-11-04 ユーザーの了承で追加)
+        self.assertEqual(c.project_aliases, {"^/private/var/folders/[^/]+/[^/]+/T/css-": "Claude-Safe-Stopper"})
         self.assertEqual(c.pdf_dir, Path("~/Documents/Claude_Usage").expanduser())
         self.assertEqual(c.state_path, c.data_dir / "state.json")
         self.assertTrue(c.notify)

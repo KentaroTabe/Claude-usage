@@ -100,6 +100,8 @@ worktree_patterns = ['/\.claude/worktrees/[^/]+', '-worktrees/[^/]+$']
 
 [projects.aliases]
 # 作業ディレクトリ(正規表現)→ 表示するプロジェクト名。例: "^/Users/me/Library" = "(その他)"
+# Claude-Safe-Stopper のテストが一時フォルダ(css-*)で起動するセッション。「work」などの別のプロジェクトとして並ばないようまとめる(2026-11-04 ユーザーの了承)
+'^/private/var/folders/[^/]+/[^/]+/T/css-' = "Claude-Safe-Stopper"
 
 [report]
 # 円グラフ・積み上げ棒に個別の色で出すプロジェクト数の上限(残りは「その他」にまとめる。合計 6 区分まで)
