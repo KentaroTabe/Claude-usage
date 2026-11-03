@@ -17,6 +17,7 @@ from claude_usage.metrics import (
     fit_price,
     fit_rates,
     fold_to_slices,
+    group_dev_time,
     group_projects,
     infer_windows,
     model_limit_points,
@@ -370,6 +371,27 @@ class BuildWeekReportTest(unittest.TestCase):
         # プロジェクト別: それぞれの応答だけで計算する(alpha は 0〜10 分、beta は 14〜25 分。重なることがある)
         self.assertEqual({p.name: p.dev_time for p in r.projects},
                          {"alpha": timedelta(minutes=10), "beta": timedelta(minutes=11)})
+        # 「その他」にまとめたときに数え直せるよう、応答の時刻を週の中の分だけ持つ
+        alpha = next(p for p in r.projects if p.name == "alpha")
+        self.assertEqual(alpha.times, tuple(START + timedelta(minutes=m) for m in (0, 10, 100)))
+        self.assertEqual(group_dev_time(r.projects, timedelta(minutes=15)), r.dev_time)
+
+
+class GroupDevTimeTest(unittest.TestCase):
+    GAP = timedelta(minutes=15)
+
+    def test_times_are_merged_so_parallel_work_counts_once(self):
+        a = ProjectUsage("a", 1.0, 1, 0.0, timedelta(minutes=20), (START, START + timedelta(minutes=20)))
+        b = ProjectUsage("b", 1.0, 1, 0.0, timedelta(minutes=10),
+                         (START + timedelta(minutes=5), START + timedelta(minutes=15)))
+        self.assertEqual(group_dev_time([a, b], self.GAP), timedelta(minutes=20))   # 合計の 30 分ではない
+
+    def test_sum_when_times_are_missing(self):
+        # ダミーデータなど時刻を持たないものは、各プロジェクトの値の合計にする
+        a = ProjectUsage("a", 1.0, 1, 0.0, timedelta(hours=2))
+        b = ProjectUsage("b", 1.0, 1, 0.0, timedelta(hours=1), (START,))
+        self.assertEqual(group_dev_time([a, b], self.GAP), timedelta(hours=3))
+        self.assertEqual(group_dev_time([], self.GAP), timedelta())
 
 
 def usage(name, weighted):

@@ -524,6 +524,34 @@ class RenderReportTest(unittest.TestCase):
         empty = render_report(report(projects=[], windows=[]), TZ, OPTIONS)
         self.assertIn('<div class="value">0.0 時間</div><div class="delta">Claude Code の利用なし</div>', empty)
 
+    def test_long_hero_value_gets_smaller_font(self):
+        # 「100%」が「100」と「%」の 2 行に分かれないよう、4 文字以上は小さい字にする(2026-11-04)
+        full = render_report(report([LimitPoint(START + timedelta(hours=3), 100)]), TZ, OPTIONS)
+        self.assertIn('<div class="kpi hero long"><div class="label">週次上限の使用率(最後の記録)</div>'
+                      '<div class="value">100%</div>', full)
+        self.assertIn('<div class="kpi hero"><div class="label">', render_report(report([LimitPoint(START, 41)]), TZ, OPTIONS))
+        self.assertIn(".kpi.hero .value { font-size: 48px; line-height: 1.15; white-space: nowrap; }", full)
+
+    def test_table_folds_the_rest_into_one_row(self):
+        # 円グラフで個別の区分にしたプロジェクトだけ 1 行ずつ、残りは「その他」の 1 行にまとめる(2026-11-04 ユーザーの了承)
+        t0 = START + timedelta(hours=1)
+        big = [ProjectUsage(f"p{i}", 100.0 - i, 2, 0.0, timedelta(hours=1)) for i in range(5)]
+        small = [ProjectUsage("s1", 4.0, 3, 2.0, timedelta(minutes=20), (t0, t0 + timedelta(minutes=20))),
+                 ProjectUsage("s2", 1.0, 1, 0.0, timedelta(minutes=20),
+                              (t0 + timedelta(minutes=10), t0 + timedelta(minutes=30))),
+                 ProjectUsage("zero", 0.0, 4, 0.0, timedelta(), (t0 + timedelta(minutes=60),))]  # 使用量 0 もまとめる
+        options = replace(OPTIONS, dev_time_gap=timedelta(minutes=15))
+        html = render_report(report(projects=big + small, windows=[]), TZ, options)
+        table = re.search(r"<th>プロジェクト</th>.*?<tbody>(.*?)</tbody>", html, re.S).group(1)
+        self.assertEqual(table.count("<tr>"), 6)
+        for name in ("s1", "s2", "zero"):
+            self.assertNotIn(f"{name}</span>", table)
+        # 割合 5/495・換算額の合計・開発時間は並行した分を 1 回(0〜30 分。合計の 40 分ではない)・セッションの合計・サブエージェント 2/5
+        self.assertIn(f'fill-others"></span>その他</span> 3 件</td><td class="num">1.0%</td>'
+                      f'<td class="num">{fmt_usd(5.0)}</td><td class="num">0.5 時間</td><td class="num">8</td>'
+                      f'<td class="num">40%</td></tr>', table)
+        self.assertRegex(table, r'fill-s\d"></span>p0</span> </td>')
+
     def test_fable_tile_shows_the_week_factor(self):
         fable = report(projects=[ProjectUsage("alpha", 10.0, 1, 0.0)],
                        windows=[window(10, {"alpha": 10.0}, by_model={"Fable": 4.0})])

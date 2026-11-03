@@ -23,6 +23,8 @@ class ProjectUsage:
     sessions: int
     subagent_weighted: float  # うちサブエージェント分
     dev_time: timedelta = timedelta()  # 開発時間(このプロジェクトの応答だけで計算。ほかのプロジェクトと重なることがある)
+    # 応答の時刻(「その他」にまとめたプロジェクトの開発時間を、並行した分を 1 回にして数え直すため)
+    times: tuple[datetime, ...] = field(default=(), repr=False, compare=False)
 
 
 @dataclass(frozen=True)

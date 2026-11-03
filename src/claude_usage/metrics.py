@@ -389,6 +389,14 @@ def active_time(times: Iterable[datetime], gap: timedelta) -> timedelta:
     return sum((b - a for a, b in zip(ordered, ordered[1:]) if b - a <= gap), timedelta())
 
 
+def group_dev_time(projects: Sequence[ProjectUsage], gap: timedelta) -> timedelta:
+    """まとめた区分(「その他」など)の開発時間。応答の時刻があれば合わせて数え直し(並行した分は 1 回)、
+    時刻を持たないもの(ダミーデータなど)があれば各プロジェクトの値の合計にする。"""
+    if projects and all(p.times for p in projects):
+        return active_time((t for p in projects for t in p.times), gap)
+    return sum((p.dev_time for p in projects), timedelta())
+
+
 def build_week_report(week: Week, events: Sequence[UsageEvent], samples: Sequence[LimitSample],
                       project_of: Callable[[str], str], weights: Weights, models: Mapping[str, str],
                       window: timedelta, prev_final_pct: float | None = None, unparsed_lines: int = 0,
@@ -425,7 +433,7 @@ def build_week_report(week: Week, events: Sequence[UsageEvent], samples: Sequenc
         pcts = [s.five_hour for s in samples if start <= s.ts < end and s.five_hour is not None]
         windows.append(WindowBucket(start, end, dict(by_project), max(pcts) if pcts else None, dict(by_model)))
     projects = [ProjectUsage(name, totals[name], len(sessions[name]), subagent[name],
-                             active_time(times[name], dev_time_gap)) for name in totals]
+                             active_time(times[name], dev_time_gap), tuple(sorted(times[name]))) for name in totals]
     limit_points = [LimitPoint(s.ts, s.seven_day) for s in samples if week.contains(s.ts) and s.seven_day is not None]
     return WeekReport(week_start=week.start, week_end=week.end, limit_points=limit_points, windows=windows,
                       projects=projects, prev_final_pct=prev_final_pct, unparsed_lines=unparsed_lines,

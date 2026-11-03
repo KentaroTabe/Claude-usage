@@ -1,12 +1,12 @@
 """週次レポートの HTML を組み立てる。CSS と JS は assets/ から読み込んでファイルに埋め込み、1 ファイルで完結させる。"""
 from __future__ import annotations
 
-from datetime import tzinfo
+from datetime import timedelta, tzinfo
 from pathlib import Path
 from typing import Mapping, Sequence
 
 from ..config import ReportOptions
-from ..metrics import OTHERS, Slice, axis_for, fold_to_slices, group_projects, with_non_code
+from ..metrics import OTHERS, Slice, axis_for, fold_to_slices, group_dev_time, group_projects, with_non_code
 from ..model import FROM_DEFAULT, FROM_OBSERVED, FROM_RECORDS, Axis, WeekReport
 from .svg import (
     N_SLOTS,
@@ -61,7 +61,7 @@ def _kpis(report: WeekReport, slices: Sequence[Slice], tz: tzinfo, models: Mappi
     # 最も使ったプロジェクトは、長い名前でも収まるよう独立した欄にせず、合計の欄の補足に書く
     top = next((s for s in slices if s.slot is not None), None)
     top_delta = f"最多: {breakable(top.name)}({fmt_share(top.share_pct)})" if top else "Claude Code の利用なし"
-    tiles = [("hero", "週次上限の使用率(最後の記録)", hero_value, hero_delta),
+    tiles = [("hero long" if len(hero_value) >= 4 else "hero", "週次上限の使用率(最後の記録)", hero_value, hero_delta),
              ("", "API 換算額(Claude Code)", fmt_usd(report.total_weighted), top_delta)]
     for name, prefix in models.items():
         total = report.model_total(name)
@@ -84,22 +84,32 @@ def _legend(slices: Sequence[Slice]) -> str:
     return f'<ul class="legend" aria-label="凡例">{items}</ul>'
 
 
-def _project_table(report: WeekReport, slices: Sequence[Slice]) -> str:
-    """slices は with_non_code の結果。割合は Claude Code 以外も含めた週全体に対する値。"""
-    owner = {m: s for s in slices for m in s.members}
+def _project_table(report: WeekReport, slices: Sequence[Slice], gap: timedelta) -> str:
+    """slices は with_non_code の結果。割合は Claude Code 以外も含めた週全体に対する値。
+
+    円グラフで個別の区分にしたプロジェクトを 1 行ずつ、残り(「その他」と使用量 0 のもの)を 1 行にまとめる。
+    プロジェクトが多い週に表が長くなり、PDF でページが空くのを防ぐため(2026-11-04 ユーザーの了承)。
+    """
     non_code = [s for s in slices if s.non_code]
     code_pct = 100 - sum(s.share_pct for s in non_code)
     total = report.total_weighted or 1
+    by_name = {p.name: p for p in report.projects}
+    shown = [s for s in slices if s.slot is not None]
+    rest = [p for p in report.projects if p.name not in {s.name for s in shown}]
+    others = next((s for s in slices if s.slot is None and not s.non_code), None)
+    groups = [(fill_class(s), s.name, "", [by_name[s.name]]) for s in shown if s.name in by_name]
+    if rest:
+        groups.append((fill_class(others) if others else "fill-others", OTHERS, f"{len(rest)} 件", rest))
     rows = []
-    for p in sorted(report.projects, key=lambda p: (-p.weighted, p.name)):
-        s = owner.get(p.name)
-        sw = f'<span class="sw {fill_class(s)}"></span>' if s else ""
-        group = f'({OTHERS})' if s is not None and s.slot is None else ""
-        sub = f"{p.subagent_weighted / p.weighted * 100:.0f}%" if p.weighted else "--"
-        rows.append(f'<tr><td><span class="name">{sw}{esc(p.name)}</span> {group}</td>'
-                    f'<td class="num">{fmt_share(p.weighted / total * code_pct)}</td>'
-                    f'<td class="num">{esc(fmt_usd(p.weighted))}</td><td class="num">{esc(fmt_hours(p.dev_time))}</td>'
-                    f'<td class="num">{p.sessions}</td><td class="num">{sub}</td></tr>')
+    for fill, label, extra, members in groups:
+        weighted = sum(p.weighted for p in members)
+        sub_weighted = sum(p.subagent_weighted for p in members)
+        sub = f"{sub_weighted / weighted * 100:.0f}%" if weighted else "--"
+        dev = members[0].dev_time if len(members) == 1 else group_dev_time(members, gap)
+        rows.append(f'<tr><td><span class="name"><span class="sw {fill}"></span>{esc(label)}</span> {esc(extra)}</td>'
+                    f'<td class="num">{fmt_share(weighted / total * code_pct)}</td>'
+                    f'<td class="num">{esc(fmt_usd(weighted))}</td><td class="num">{esc(fmt_hours(dev))}</td>'
+                    f'<td class="num">{sum(p.sessions for p in members)}</td><td class="num">{sub}</td></tr>')
     for s in non_code:  # 使用量・セッションは分からない
         rows.append(f'<tr><td><span class="name"><span class="sw {fill_class(s)}"></span>{esc(s.name)}</span></td>'
                     f'<td class="num">{fmt_share(s.share_pct)}</td><td class="num">--</td><td class="num">--</td>'
@@ -221,7 +231,7 @@ def render_report(report: WeekReport, tz: tzinfo, options: ReportOptions,
 <h2>プロジェクト別</h2>
 <div class="split">
 <div class="donut-wrap">{donut_chart(shares, report.total_weighted)}</div>
-{_project_table(report, shares)}
+{_project_table(report, shares, options.dev_time_gap)}
 </div>
 </section>
 <section class="card keep">
