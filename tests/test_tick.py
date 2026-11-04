@@ -230,22 +230,34 @@ class RunTickTest(unittest.TestCase):
         self.assertEqual(self.tick(jst(2026, 10, 23, 12, 30)), [])
         self.assertEqual(len(self.usage_calls), 2)
 
-    def test_activity_screen_follows_new_use(self):
-        # 2026-11-03 ユーザーの指定: 画面は今後の使用に合わせて変わる。週次レポートに関係なく、ログが更新されていれば作り直す
+    def test_activity_screen_is_rebuilt_weekly_with_the_report(self):
+        # 2026-11-04 ユーザーの指定: 画面は週 1 回、週次リセットの後に週次レポートを作る回に作り直す
+        #(それまでは会話ログが更新されていれば 60 分ごと)。一度も作っていなければすぐ作る
         log_file = Path(self.tmp.name) / "projects" / "p" / "s.jsonl"
         first = jst(2026, 10, 23, 12, 0)
-        os.utime(log_file, (first.timestamp() - 60, first.timestamp() - 60))
         self.tick(first)
         self.assertEqual(self.activity_calls, [first])
         self.assertEqual(load_state(self.config.state_path)["activity_built_at"], first.isoformat())
-        self.tick(first + timedelta(hours=2))                   # ログが更新されていなければ作らない
-        self.assertEqual(self.activity_calls, [first])
         later = first + timedelta(hours=3)
         os.utime(log_file, (later.timestamp() - 60, later.timestamp() - 60))
-        self.tick(first + timedelta(minutes=30))                # 間隔が短ければ待つ
+        self.tick(later)                                        # ログが更新されても、週の途中は作らない
         self.assertEqual(self.activity_calls, [first])
-        self.tick(later)
-        self.assertEqual(self.activity_calls, [first, later])
+        reset = jst(2026, 10, 27, 19, 30)
+        log = self.tick(reset)                                  # 週次レポートを作った回に作り直す
+        self.assertTrue(any(l.startswith("作成: ") for l in log))
+        self.assertEqual(self.activity_calls, [first, reset])
+        self.tick(reset + timedelta(minutes=30))                # その週の分は作り終えた
+        self.assertEqual(self.activity_calls, [first, reset])
+
+    def test_activity_screen_retried_after_failing_on_the_report_tick(self):
+        self.tick(jst(2026, 10, 23, 12, 0))
+        self.activity_error = OSError("disk full")
+        reset = jst(2026, 10, 27, 19, 30)
+        self.assertIn("活動の再生画面を作れませんでした: OSError: disk full", self.tick(reset))
+        self.activity_error = None
+        retry = reset + timedelta(minutes=30)
+        self.tick(retry)                                        # レポートは作り済みでも、画面は次の回に作り直す
+        self.assertEqual(self.activity_calls, [jst(2026, 10, 23, 12, 0), reset, retry])
 
     def test_activity_screen_failure_is_only_logged(self):
         self.activity_error = OSError("disk full")

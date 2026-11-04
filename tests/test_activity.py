@@ -24,7 +24,7 @@ TZ = ZoneInfo("Asia/Tokyo")
 START = datetime(2026, 10, 20, 10, 0, tzinfo=timezone.utc)   # 10/20 火 19:00 JST
 STEP = timedelta(minutes=15)
 OPTIONS = ActivityOptions(min_responses=3, bin=STEP, half_life=timedelta(minutes=30), heat_percentile=99, fade_level=0.05,
-                          default_branches=frozenset({"main"}), max_file_sessions=2, refresh=timedelta(minutes=60),
+                          default_branches=frozenset({"main"}), max_file_sessions=2,
                           mature_usd=300, dormant=timedelta(days=7), dead=timedelta(days=30),
                           categories={"game": "spiral", "app": "ring", "web": "emission", "data": "bipolar",
                                       "tool": "pillars", "media": "reflection"},
@@ -208,14 +208,17 @@ class RefreshTest(unittest.TestCase):
     NOW = datetime(2026, 11, 3, 12, 0, tzinfo=timezone.utc)
     HOUR = timedelta(hours=1)
 
-    def test_rebuilt_when_logs_changed_and_enough_time_passed(self):
-        built = (self.NOW - 2 * self.HOUR).isoformat()
-        self.assertTrue(activity_due(None, self.NOW, self.NOW, self.HOUR))                   # 初めて
-        self.assertTrue(activity_due(built, self.NOW - self.HOUR, self.NOW, self.HOUR))      # 前回の後にログが更新された
-        self.assertFalse(activity_due(built, self.NOW - 3 * self.HOUR, self.NOW, self.HOUR))  # 使っていなければ作らない
-        recent = (self.NOW - timedelta(minutes=20)).isoformat()
-        self.assertFalse(activity_due(recent, self.NOW, self.NOW, self.HOUR))                # 間隔が短ければ待つ
-        self.assertFalse(activity_due(None, None, self.NOW, self.HOUR))                      # ログがない
+    def test_rebuilt_once_a_week_after_the_weekly_report(self):
+        # 2026-11-04 ユーザーの指定: 週 1 回、週次レポートを作った週の終わり(リセット)が前回より後なら作り直す
+        #(それまでは会話ログが更新されていれば 60 分ごと)
+        reset = self.NOW - self.HOUR
+        before = (reset - timedelta(days=6)).isoformat()
+        after = (reset + timedelta(minutes=30)).isoformat()
+        self.assertTrue(activity_due(None, self.NOW, None))                # 初めて
+        self.assertTrue(activity_due(before, self.NOW, reset))             # 前回の後に週が終わり、レポートができた
+        self.assertFalse(activity_due(after, self.NOW, reset))             # この週の分はもう作った
+        self.assertFalse(activity_due(before, self.NOW, None))             # レポートがまだない
+        self.assertFalse(activity_due(None, None, reset))                  # ログがない
 
     def test_newest_log(self):
         with tempfile.TemporaryDirectory() as tmp:

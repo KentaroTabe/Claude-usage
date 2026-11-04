@@ -140,7 +140,6 @@ class ActivityOptions:
     fade_level: float             # 最後の応答の後、動きの段階(0〜1)がこれを下回ったらセッションを消す
     default_branches: frozenset[str]  # 関係に使わないブランチ(多くのセッションが共有するもの)
     max_file_sessions: int        # 同じプロジェクトでこれより多くのセッションが触るファイルは、関係とみなさない
-    refresh: timedelta            # 再生画面を作り直す最短の間隔(会話ログが更新されたときだけ作り直す)
     mature_usd: float             # 星雲が生まれたての姿から、そのプロジェクトの姿になりきる API 換算額 [ドル]
     dormant: timedelta            # 動きがないと星雲が衰え始めるまでの時間
     dead: timedelta               # 動きがないと星雲が死んだ姿になりきるまでの時間
@@ -429,7 +428,6 @@ def _activity(table: Mapping[str, Any]) -> ActivityOptions:
         fade_level=fade,
         default_branches=frozenset(branches),
         max_file_sessions=int(_number(table, "activity", "max_file_sessions", integer=True, minimum=2)),
-        refresh=timedelta(minutes=_number(table, "activity", "refresh_minutes", minimum=1)),
         mature_usd=float(_number(table, "activity", "mature_usd", minimum=1)),
         dormant=dormant,
         dead=dead,

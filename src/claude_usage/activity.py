@@ -511,14 +511,17 @@ def newest_log(root: Path) -> datetime | None:
     return datetime.fromtimestamp(max(times), timezone.utc) if times else None
 
 
-def activity_due(built_at: str | None, newest: datetime | None, now: datetime, refresh: timedelta) -> bool:
-    """再生画面を作り直すか。会話ログが前回より新しく、前回から refresh 経っていれば作り直す。"""
+def activity_due(built_at: str | None, newest: datetime | None, week_end: datetime | None) -> bool:
+    """再生画面を作り直すか。週 1 回、週次レポートを作った最新の週の終わり(リセット)が前回より後なら作り直す。
+
+    一度も作っていなければ作る。会話ログがなければ作らない。作り直しに失敗したら、前回のままなので次の回にまた作る。
+    (2026-11-04 ユーザーの指定。それまでは会話ログが更新されていれば 60 分ごと)
+    """
     if newest is None:
         return False
     if built_at is None:
         return True
-    last = datetime.fromisoformat(built_at)
-    return newest > last and now - last >= refresh
+    return week_end is not None and week_end > datetime.fromisoformat(built_at)
 
 
 def version_file(html: Path) -> Path:

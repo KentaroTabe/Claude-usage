@@ -56,7 +56,8 @@ class ParseConfigTest(unittest.TestCase):
         self.assertEqual((c.activity.bin, c.activity.half_life), (timedelta(minutes=15), timedelta(minutes=30)))
         self.assertEqual((c.activity.heat_percentile, c.activity.fade_level, c.activity.max_file_sessions), (99.0, 0.05, 8))
         self.assertEqual(c.activity.default_branches, {"main", "master", "HEAD", "develop"})
-        self.assertEqual(c.activity.refresh, timedelta(minutes=60))
+        # 再生画面は週 1 回、週次レポートと一緒に作り直すので、間隔の設定はない(2026-11-04 ユーザーの指定。それまでは 60 分)
+        self.assertNotIn("refresh_minutes", EXAMPLE["activity"])
         self.assertEqual(c.activity.mature_usd, 300)
         self.assertEqual((c.activity.dormant, c.activity.dead), (timedelta(days=7), timedelta(days=30)))
         self.assertEqual(c.activity.categories["game"], "spiral")
@@ -157,7 +158,6 @@ class ParseConfigTest(unittest.TestCase):
             ("activity", "fade_level", 1),
             ("activity", "default_branches", "main"),
             ("activity", "max_file_sessions", 1),
-            ("activity", "refresh_minutes", 0),
             ("activity", "dead_days", 7),                                 # dormant_days(7)以下
             ("activity", "project_kinds", {"x": "unknown-kind"}),         # categories にない種類
             ("activity", "categories", KeyError),

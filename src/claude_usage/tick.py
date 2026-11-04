@@ -172,7 +172,8 @@ def run_tick(config: Config, now: datetime | None = None, notifier: Notifier = n
     log += [f"作成: {c.pdf}" for c in created]
 
     state = load_state(config.state_path)  # make_reports が書いた後に読む
-    rebuilt = activity_due(state.get("activity_built_at"), newest_log(config.transcripts_root), now, config.activity.refresh)
+    week_end = max(map(datetime.fromisoformat, state["weeks"]), default=None)  # 週次レポートを作った最新の週の終わり
+    rebuilt = activity_due(state.get("activity_built_at"), newest_log(config.transcripts_root), week_end)
     if rebuilt:
         try:
             activity(config, now)
