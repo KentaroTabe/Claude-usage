@@ -3,7 +3,7 @@
 Claude Code の使用量を、毎週の PDF レポートと、全期間の活動を星雲として再生する画面にまとめる macOS 向けの小さなアプリです。
 手元のログだけを読み、外部のサービスには何も送りません。
 
-**再生画面のデモ: https://kentarotabe.github.io/Claude-usage/**(作者の実際の記録。2026-07-17〜11-03)
+**再生画面のデモ:** [kentarotabe.github.io/Claude-usage](https://kentarotabe.github.io/Claude-usage/)(作者の実際の記録。2026-07-17〜11-03)
 
 ![活動の再生画面。プロジェクトが星雲、セッションが星として暗い宇宙に浮かび、下に日ごとの応答数の時間軸がある](docs/images/activity.png)
 
